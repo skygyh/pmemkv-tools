@@ -52,6 +52,8 @@ static const std::string USAGE =
         "    readmissing            (read N missing values in random key order)\n"
         "    deleteseq              (delete N values in sequential key order)\n"
         "    deleterandom           (delete N values in random key order)\n"
+        "    batchdeleteseq         (delete N values in sequential key order)\n"
+        "    batchdeleterandom      (delete N values in random key order)\n"      
         "    readwhilewriting       (1 writer, N threads doing random reads)\n"
         "    readrandomwriterandom  (N threads doing random-read, random-write)\n";
 
@@ -506,6 +508,10 @@ public:
                 method = &Benchmark::DeleteSeq;
             } else if (name == Slice("deleterandom")) {
                 method = &Benchmark::DeleteRandom;
+             } else if (name == Slice("batchdeleteseq")) {
+                method = &Benchmark::BatchDeleteSeq;
+            } else if (name == Slice("batchdeleterandom")) {
+                method = &Benchmark::BatchDeleteRandom;
             } else if (name == Slice("readwhilewriting")) {
                 ++num_threads;
                 method = &Benchmark::ReadWhileWriting;
@@ -731,6 +737,29 @@ private:
             kv_->remove(key.ToString());
             thread->stats.FinishedSingleOp();
         }
+    }
+
+    void DoBatchDelete(ThreadState *thread, bool seq) {
+        std::unique_ptr<const char[]> key_guard;
+        Slice key = AllocateKey(key_guard);
+        std::vector<string_view> keys;
+        for (int i = 0; i < num_; i+=10) {
+            const int k = seq ? i : (thread->rand.Next() % FLAGS_num);
+            GenerateKeyFromInt(k, FLAGS_num, &key);
+            for (int j = 0; i < 10; j++) {
+                keys.push_back(key.ToString);
+            }
+            kv_->batch_remove(keys);
+            thread->stats.FinishedSingleOp();
+        }
+    }
+
+    void BatchDeleteSeq(ThreadState *thread) {
+        DoBatchDelete(thread, true);
+    }
+
+    void BatchDeleteRandom(ThreadState *thread) {
+        DoBatchDelete(thread, false);
     }
 
     void DeleteSeq(ThreadState *thread) {
