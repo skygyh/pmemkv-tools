@@ -742,12 +742,13 @@ private:
     void DoBatchDelete(ThreadState *thread, bool seq) {
         std::unique_ptr<const char[]> key_guard;
         Slice key = AllocateKey(key_guard);
-        std::vector<string_view> keys;
+        std::vector<pmem::kv::string_view> keys;
         for (int i = 0; i < num_; i+=10) {
-            const int k = seq ? i : (thread->rand.Next() % FLAGS_num);
-            GenerateKeyFromInt(k, FLAGS_num, &key);
-            for (int j = 0; i < 10; j++) {
-                keys.push_back(key.ToString);
+            for (int j = 0; j < 10; j++) {
+                const int k = seq ? i+j : (thread->rand.Next() % FLAGS_num);
+                GenerateKeyFromInt(k, FLAGS_num, &key);
+                pmem::kv::string_view view(key.ToString());
+                keys.push_back(view);
             }
             kv_->batch_remove(keys);
             thread->stats.FinishedSingleOp();
